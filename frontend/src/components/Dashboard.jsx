@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect } from "react";
 
 function Dashboard() {
   const [dashboardData, setDashboardData] = useState(null);
@@ -11,26 +11,28 @@ function Dashboard() {
 
   const fetchDashboardData = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/dashboard', {
-        credentials: 'include',
-        method: 'GET',
+      const response = await fetch("http://localhost:5000/api/dashboard", {
+        credentials: "include",
+        method: "GET",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
       });
 
       if (response.ok) {
         const data = await response.json();
+        console.log("Dashboard data:", data); // Debug log
         setDashboardData(data);
       } else if (response.status === 401) {
         // Redirect to home if not authenticated
-        window.location.href = '/';
+        window.location.href = "/";
       } else {
-        setError('Failed to load dashboard data');
+        const errorData = await response.json();
+        setError(errorData.detail || "Failed to load dashboard data");
       }
     } catch (error) {
-      console.error('Dashboard data fetch failed:', error);
-      setError('Failed to load dashboard data');
+      console.error("Dashboard data fetch failed:", error);
+      setError("Failed to load dashboard data");
     } finally {
       setLoading(false);
     }
@@ -41,7 +43,7 @@ function Dashboard() {
   }
 
   if (error) {
-    return <div style={{ color: 'red' }}>{error}</div>;
+    return <div style={{ color: "red" }}>{error}</div>;
   }
 
   return (
@@ -51,14 +53,17 @@ function Dashboard() {
         <div>
           <div className="user-info">
             <h3>User Information</h3>
-            <p>Name: {dashboardData.user.first_name} {dashboardData.user.last_name}</p>
+            <p>
+              Name: {dashboardData.user.first_name}{" "}
+              {dashboardData.user.last_name}
+            </p>
             <p>Email: {dashboardData.user.email}</p>
+            <p>User ID: {dashboardData.user.id}</p>
           </div>
           <div className="dashboard-stats">
             <h3>Dashboard Statistics</h3>
-            <p>Last Login: {dashboardData.dashboard_data.last_login}</p>
-            <p>Role: {dashboardData.dashboard_data.role}</p>
-            <p>Permissions: {dashboardData.dashboard_data.permissions.join(', ')}</p>
+            <p>Role: {dashboardData.user.role}</p>
+            <p>Permissions: {dashboardData.user.permissions}</p>
             <p>User ID: {dashboardData.user.id}</p>
             <p>User Email: {dashboardData.user.email}</p>
             <p>User First Name: {dashboardData.user.first_name}</p>
@@ -71,4 +76,4 @@ function Dashboard() {
   );
 }
 
-export default Dashboard; 
+export default Dashboard;

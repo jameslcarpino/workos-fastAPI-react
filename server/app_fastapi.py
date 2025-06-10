@@ -204,21 +204,26 @@ async def dashboard(request: Request):
         )
         response = session.authenticate()
         if response.authenticated:
+            # Log the user data to help debug
+            print("User data:", response.user)
+            print("FULL RESPONSE:", response)
+            print("USER ROLE:", response.user.role)
+            print("USER PERMISSIONS:", response.user.permissions)   
+            
             return {
                 "user": {
                     "id": response.user.id,
                     "email": response.user.email,
                     "first_name": response.user.first_name,
-                    "last_name": response.user.last_name
-                },
-                "dashboard_data": {
-                    "last_login": "2024-03-20",
-                    "role": "user",
-                    "permissions": ["read", "write"]
+                    "last_name": response.user.last_name,
+                    "role": response.user.role,
+                    "permissions": response.user.permissions
                 }
             }
+        print("Authentication failed:", response.reason if hasattr(response, 'reason') else "Unknown reason")
         raise HTTPException(status_code=401, detail="Not authenticated")
     except Exception as e:
+        print("Dashboard error:", str(e))
         raise HTTPException(status_code=401, detail=str(e))
 
 if __name__ == "__main__":
