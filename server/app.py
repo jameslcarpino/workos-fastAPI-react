@@ -30,15 +30,15 @@ def with_auth(f):
             return f(*args, **kwargs)
 
         if auth_response.authenticated is False and auth_response.reason == "no_session_cookie_provided":
-            return make_response(redirect("/api/login"))  # Redirect to login instead of returning JSON
+            return {"error": "Not authenticated", "redirect": "/api/login"}, 401
 
         try:
             print("Refreshing session")
             result = session.refresh()
             if result.authenticated is False:
-                return make_response(redirect("/api/login"))
+                return {"error": "Session expired", "redirect": "/api/login"}, 401
 
-            response = make_response(redirect(request.url))
+            response = make_response({"message": "Session refreshed"})
             response.set_cookie(
                 "wos_session",
                 result.sealed_session,
@@ -49,9 +49,7 @@ def with_auth(f):
             return response
         except Exception as e:
             print("Error refreshing session", e)
-            response = make_response(redirect("/api/login"))
-            response.delete_cookie("wos_session")
-            return response
+            return {"error": "Session refresh failed", "redirect": "/api/login"}, 401
 
     return decorated_function
 
@@ -173,6 +171,47 @@ def get_user():
         }
         return {"user": user_dict}
     return {"error": "Not authenticated"}
+
+@app.route("/api/dashboard")
+@with_auth
+def dashboard():
+    try:
+        print("\n=== DASHBOARD ROUTE HIT ===")
+        session = workos.user_management.load_sealed_session(
+            sealed_session=request.cookies.get("wos_session"),
+            cookie_password=cookie_password,
+        )
+        print("Session loaded, attempting authentication...")
+        response = session.authenticate()
+        print("Authentication response:", response)
+        
+        if response.authenticated:
+            print("Authentication successful")
+            # Log the user data to help debug
+            print("User data:", response.user)
+            print("FULL RESPONSE:", response)
+            try:
+                print("USER ROLE:", response.user.role)
+                print("USER PERMISSIONS:", response.user.permissions)
+            except AttributeError as e:
+                print("Error accessing role/permissions:", str(e))
+            
+            user_data = {
+                "user": {
+                    "id": response.user.id,
+                    "email": response.user.email,
+                    "first_name": response.user.first_name,
+                    "last_name": response.user.last_name
+                }
+            }
+            print("Returning user data:", user_data)
+            return user_data
+            
+        print("Authentication failed:", response.reason if hasattr(response, 'reason') else "Unknown reason")
+        return {"error": "Not authenticated"}, 401
+    except Exception as e:
+        print("Dashboard error:", str(e))
+        return {"error": str(e)}, 401
 
 if __name__ == "__main__":
     app.run(debug=True, port=5000) 

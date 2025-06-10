@@ -45,6 +45,7 @@ class LogoutResponse(BaseModel):
 def with_auth(f: Callable[..., Any]):
     @wraps(f)
     async def decorated_function(*args, **kwargs):
+        print("\n=== WITH_AUTH DECORATOR HIT ===")
         # Find the request parameter either in args or kwargs
         request = None
         for arg in args:
@@ -55,31 +56,42 @@ def with_auth(f: Callable[..., Any]):
             request = kwargs['request']
             
         if request is None:
+            print("No Request object found")
             raise ValueError("No Request object found in function arguments")
-            
+        
+        print("Session cookie:", request.cookies.get("wos_session"))
         session = workos.user_management.load_sealed_session(
             sealed_session=request.cookies.get("wos_session") or "",
             cookie_password=cookie_password,
         )
+        print("Session loaded, attempting authentication...")
         auth_response = session.authenticate()
+        print("Authentication response:", auth_response)
         
         if auth_response.authenticated:
+            print("Authentication successful")
             return await f(*args, **kwargs)
 
         if auth_response.authenticated is False and auth_response.reason == "no_session_cookie_provided":
+            print("No session cookie provided")
             return JSONResponse(
                 status_code=401,
                 content={"error": "Not authenticated", "redirect": "/api/login"}
             )
 
         try:
+            print("Attempting to refresh session")
             result = session.refresh()
+            print("Refresh result:", result)
+            
             if result.authenticated is False:
+                print("Session refresh failed")
                 return JSONResponse(
                     status_code=401,
                     content={"error": "Session expired", "redirect": "/api/login"}
                 )
 
+            print("Session refreshed successfully")
             response = JSONResponse(content={"message": "Session refreshed"})
             response.set_cookie(
                 "wos_session",
@@ -90,6 +102,7 @@ def with_auth(f: Callable[..., Any]):
             )
             return response
         except Exception as e:
+            print("Error refreshing session:", str(e))
             return JSONResponse(
                 status_code=401,
                 content={"error": "Session refresh failed", "redirect": "/api/login"}
@@ -198,28 +211,37 @@ async def get_user(request: Request):
 @with_auth
 async def dashboard(request: Request):
     try:
+        print("\n=== DASHBOARD ROUTE HIT ===")
         session = workos.user_management.load_sealed_session(
             sealed_session=request.cookies.get("wos_session") or "",
             cookie_password=cookie_password,
         )
+        print("Session loaded, attempting authentication...")
         response = session.authenticate()
+        print("Authentication response:", response)
+        
         if response.authenticated:
+            print("Authentication successful")
             # Log the user data to help debug
             print("User data:", response.user)
             print("FULL RESPONSE:", response)
-            print("USER ROLE:", response.user.role)
-            print("USER PERMISSIONS:", response.user.permissions)   
+            try:
+                print("USER ROLE:", response.user.role)
+                print("USER PERMISSIONS:", response.user.permissions)
+            except AttributeError as e:
+                print("Error accessing role/permissions:", str(e))
             
-            return {
+            user_data = {
                 "user": {
                     "id": response.user.id,
                     "email": response.user.email,
                     "first_name": response.user.first_name,
-                    "last_name": response.user.last_name,
-                    "role": response.user.role,
-                    "permissions": response.user.permissions
+                    "last_name": response.user.last_name
                 }
             }
+            print("Returning user data:", user_data)
+            return user_data
+            
         print("Authentication failed:", response.reason if hasattr(response, 'reason') else "Unknown reason")
         raise HTTPException(status_code=401, detail="Not authenticated")
     except Exception as e:
