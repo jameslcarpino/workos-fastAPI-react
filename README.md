@@ -64,15 +64,7 @@ The FastAPI backend will be available at http://localhost:5000
 - Dashboard with user information
 - Secure cookie handling
 
-## API Endpoints
 
-### Common Endpoints (Both Flask and FastAPI)
-
-- `/api/login` - Initiate login
-- `/api/callback` - Handle WorkOS callback
-- `/api/logout` - Handle logout
-- `/api/user` - Get user information
-- `/api/dashboard` - Protected dashboard endpoint
 
 ## Notes
 
